@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>r0zygisk WebUI</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">r0zygisk</p>
+        <h1>Zygisk 控制台</h1>
+        <p class="lead">查看注入状态、守护进程、已加载模块，并控制 init 追踪器。</p>
+      </div>
+      <button id="refresh" class="button secondary" type="button">刷新</button>
+    </header>
+
+    <section class="summary" aria-label="运行状态">
+      <article class="hero-panel">
+        <div class="ring" aria-hidden="true">
+          <span id="healthScore">--</span>
+        </div>
+        <div>
+          <p class="label">当前状态</p>
+          <h2 id="monitorTitle">正在读取</h2>
+          <p id="monitorDesc" class="muted">正在从模块描述和进程表读取状态。</p>
+        </div>
+      </article>
+      <article class="stat-card">
+        <span class="dot" id="daemonDot"></span>
+        <p class="label">Daemon</p>
+        <strong id="daemonState">--</strong>
+        <small id="daemonDetail">等待刷新</small>
+      </article>
+      <article class="stat-card">
+        <span class="dot" id="zygoteDot"></span>
+        <p class="label">Zygote</p>
+        <strong id="zygoteState">--</strong>
+        <small id="zygoteDetail">等待刷新</small>
+      </article>
+      <article class="stat-card">
+        <span class="dot ok"></span>
+        <p class="label">Root</p>
+        <strong id="rootState">--</strong>
+        <small id="rootDetail">KernelSU / Magisk 自动识别</small>
+      </article>
+    </section>
+
+    <section class="controls-panel">
+      <div>
+        <p class="label">控制</p>
+        <h2>追踪器操作</h2>
+        <p class="muted">启动或停止对 init fork 的追踪。退出监控后通常需要重启或重新启动模块服务。</p>
+      </div>
+      <div class="actions">
+        <button class="button primary" data-command="start" type="button">启动追踪</button>
+        <button class="button warning" data-command="stop" type="button">停止追踪</button>
+        <button class="button danger" data-command="exit" type="button">退出监控</button>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <p class="label">模块</p>
+            <h2>已发现的 Zygisk 模块</h2>
+          </div>
+          <span id="moduleCount" class="pill">--</span>
+        </div>
+        <div id="moduleList" class="list empty">正在扫描 /data/adb/modules</div>
+      </article>
+
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <p class="label">说明</p>
+            <h2>这些按钮做什么</h2>
+          </div>
+        </div>
+        <div class="explain">
+          <p><strong>启动追踪</strong>：让 r0zygisk 继续监听新 zygote，并在 zygote 启动时注入。</p>
+          <p><strong>停止追踪</strong>：停止继续注入新 zygote，已运行进程不会被这个按钮回滚。</p>
+          <p><strong>退出监控</strong>：结束监控进程，适合排障；恢复通常需要重启设备或重新执行服务脚本。</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">
+        <div>
+          <p class="label">原始输出</p>
+          <h2>诊断信息</h2>
+        </div>
+        <button id="copyLog" class="button secondary small" type="button">复制</button>
+      </div>
+      <pre id="statusText">正在读取状态...</pre>
+      <p id="message" class="message">页面已加载。</p>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

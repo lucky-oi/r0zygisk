@@ -1,0 +1,13 @@
+.gradle/
+.idea/
+.cxx/
+build/
+**/.gradle/
+**/.idea/
+**/.cxx/
+**/build/
+local.properties
+**/local.properties
+module/public_key
+module/private_key
+Cargo.lock
