@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.3
+
+### Notes
+
++ r0zygisk first release
+
 ## v1.0.1
 
 ### Added
