@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ v* ]
+  pull_request:
+  merge_group:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write key
+        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' ) || github.ref_type == 'tag' }}
+        run: |
+          if [ ! -z "${{ secrets.PRIVATE_KEY }}" ]; then
+            echo '${{ secrets.PUBLIC_KEY }}' | base64 --decode > module/public_key
+            echo '${{ secrets.PRIVATE_KEY }}' | base64 --decode > module/private_key
+          fi
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup rust-cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zygiskd/src -> ../build/intermediates/rust
+          cache-targets: false
+
+      - name: Setup Rust
+        run: |
+          rustup override set nightly
+          rustup target add aarch64-linux-android
+          rustup target add x86_64-linux-android
+          rustup target add i686-linux-android
+          rustup target add armv7-linux-androideabi
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ runner.os }}
+          restore-keys: ${{ runner.os }}
+          save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Build with Gradle
+        run: |
+          echo 'org.gradle.parallel=true' >> gradle.properties
+          echo 'org.gradle.vfs.watch=true' >> gradle.properties
+          echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
+          echo 'android.native.buildOutput=verbose' >> gradle.properties
+          ./gradlew zipRelease
+          ./gradlew zipDebug
+
+      - name: Prepare artifact
+        if: success()
+        id: prepareArtifact
+        run: |
+          releaseName=`ls module/build/outputs/release/r0zygisk-v*-release.zip | awk -F '(/|.zip)' '{print $5}'` && echo "releaseName=$releaseName" >> $GITHUB_OUTPUT
+          debugName=`ls module/build/outputs/release/r0zygisk-v*-debug.zip | awk -F '(/|.zip)' '{print $5}'` && echo "debugName=$debugName" >> $GITHUB_OUTPUT
+          unzip module/build/outputs/release/r0zygisk-v*-release.zip -d r0zygisk-release
+          unzip module/build/outputs/release/r0zygisk-v*-debug.zip -d r0zygisk-debug
+          releaseSymbolName="SYMBOLS-$releaseName.zip"
+          debugSymbolName="SYMBOLS-$debugName.zip"
+          echo "releaseSymbolName=$releaseSymbolName" >> $GITHUB_OUTPUT
+          echo "debugSymbolName=$debugSymbolName" >> $GITHUB_OUTPUT
+          zip -r $releaseSymbolName zygiskd/build/symbols/release
+          zip -r $debugSymbolName zygiskd/build/symbols/debug
+
+      - name: Upload release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.prepareArtifact.outputs.releaseName }}
+          path: "./r0zygisk-release/*"
+
+      - name: Upload debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.prepareArtifact.outputs.debugName }}
+          path: "./r0zygisk-debug/*"
+
+      - name: Upload release symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.prepareArtifact.outputs.releaseName }}-symbols
+          path: "zygiskd/build/symbols/release"
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.prepareArtifact.outputs.debugName }}-symbols
+          path: "zygiskd/build/symbols/debug"
