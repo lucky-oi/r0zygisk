@@ -21,9 +21,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "r0zygisk"
+rootProject.name = "r0z"
 include(
     ":loader",
     ":module",
-    ":zygiskd",
+    ":r0zd",
 )
+project(":r0zd").projectDir = file("zygiskd")

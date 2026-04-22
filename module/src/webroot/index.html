@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>r0zygisk WebUI</title>
+  <title>r0z WebUI</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <div>
-        <p class="eyebrow">r0zygisk</p>
-        <h1>Zygisk 控制台</h1>
-        <p class="lead">查看注入状态、守护进程、已加载模块，并控制 init 追踪器。</p>
+        <p class="eyebrow">r0z</p>
+        <h1>r0z 控制台</h1>
+        <p class="lead">查看注入状态、守护进程、已加载模块，并控制 init 追踪器与模式。</p>
       </div>
       <button id="refresh" class="button secondary" type="button">刷新</button>
     </header>
@@ -66,7 +66,7 @@
         <div class="section-title">
           <div>
             <p class="label">模块</p>
-            <h2>已发现的 Zygisk 模块</h2>
+            <h2>已发现的 r0z 模块</h2>
           </div>
           <span id="moduleCount" class="pill">--</span>
         </div>
@@ -81,9 +81,10 @@
           </div>
         </div>
         <div class="explain">
-          <p><strong>启动追踪</strong>：让 r0zygisk 继续监听新 zygote，并在 zygote 启动时注入。</p>
+          <p><strong>启动追踪</strong>：让 r0z 继续监听新 zygote，并在 zygote 启动时注入。</p>
           <p><strong>停止追踪</strong>：停止继续注入新 zygote，已运行进程不会被这个按钮回滚。</p>
           <p><strong>退出监控</strong>：结束监控进程，适合排障；恢复通常需要重启设备或重新执行服务脚本。</p>
+          <p><strong>当前策略</strong>：保持持续追踪，优先保证 LSPosed 与其他依赖 zygote 注入的模块兼容性。</p>
         </div>
       </article>
     </section>

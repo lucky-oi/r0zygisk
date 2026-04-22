@@ -27,8 +27,8 @@ val gitCommitHash = if (gitDir.exists()) {
     "unknown"
 }
 
-val moduleId by extra("r0zygisk")
-val moduleName by extra("r0zygisk")
+val moduleId by extra("r0z")
+val moduleName by extra("r0z")
 val verName by extra("v1.0.0")
 val verCode by extra(1)
 val commitHash by extra(gitCommitHash)
@@ -51,7 +51,7 @@ tasks.register("Delete", Delete::class) {
 
 fun Project.configureBaseExtension() {
     extensions.findByType(LibraryExtension::class)?.run {
-        namespace = "com.r0ysue.r0zygisk"
+        namespace = "com.r0ysue.r0z"
         compileSdk = androidCompileSdkVersion
         ndkVersion = androidCompileNdkVersion
         buildToolsVersion = androidBuildToolsVersion

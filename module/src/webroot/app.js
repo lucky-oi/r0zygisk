@@ -1,10 +1,10 @@
-let moduleDir = "/data/adb/modules/r0zygisk";
+let moduleDir = "/data/adb/modules/r0z";
 
-const locateModuleShell = "MODDIR=\"\"; for base in /data/adb/modules /data/adb/modules_update /data/adb/ksu/modules /data/adb/ap/modules; do [ -d \"$base\" ] || continue; for prop in \"$base\"/*/module.prop; do [ -f \"$prop\" ] || continue; if grep -q '^id=r0zygisk$' \"$prop\" 2>/dev/null || grep -q '^name=r0zygisk$' \"$prop\" 2>/dev/null; then MODDIR=${prop%/module.prop}; break 2; fi; done; done; [ -n \"$MODDIR\" ] || MODDIR=/data/adb/modules/r0zygisk";
+const locateModuleShell = "MODDIR=\"\"; for base in /data/adb/modules /data/adb/modules_update /data/adb/ksu/modules /data/adb/ap/modules; do [ -d \"$base\" ] || continue; for prop in \"$base\"/*/module.prop; do [ -f \"$prop\" ] || continue; if grep -q '^id=r0z$' \"$prop\" 2>/dev/null || grep -q '^name=r0z$' \"$prop\" 2>/dev/null; then MODDIR=${prop%/module.prop}; break 2; fi; done; done; [ -n \"$MODDIR\" ] || MODDIR=/data/adb/modules/r0z";
 let callbackCounter = 0;
 
 function ctlPath() {
-  return `${moduleDir}/bin/zygisk-ctl`;
+  return `${moduleDir}/bin/r0z-ctl`;
 }
 
 const els = {
@@ -73,7 +73,7 @@ function execCompat(bridge, command) {
   return new Promise((resolve, reject) => {
     let settled = false;
     let timer;
-    const callbackName = `r0zygisk_exec_${Date.now()}_${callbackCounter++}`;
+    const callbackName = `r0z_exec_${Date.now()}_${callbackCounter++}`;
     const finish = (value) => {
       if (settled) {
         return;
@@ -230,7 +230,7 @@ function renderModules(modules) {
   els.moduleCount.textContent = `${modules.length} 个`;
   if (!modules.length) {
     els.moduleList.className = "list empty";
-    els.moduleList.textContent = "没有发现已安装的 Zygisk 模块，或当前管理器未授予读取权限。";
+    els.moduleList.textContent = "没有发现已安装的 r0z 模块，或当前管理器未授予读取权限。";
     return;
   }
 
@@ -249,8 +249,8 @@ function renderModules(modules) {
 function renderDashboard(prop, statusText, processes, modules) {
   const status = readStatus(statusText, prop);
   const json = status.json || {};
-  const monitorOk = json.monitor === "tracing" || status.monitor.includes("tracing") || /zygisk-ptrace/.test(processes);
-  const daemonOk = json.daemon64 === "running" || json.daemon32 === "running" || status.daemons.some((item) => item.includes("running")) || /zygiskd/.test(processes);
+  const monitorOk = json.monitor === "tracing" || status.monitor.includes("tracing") || /r0z-trace/.test(processes);
+  const daemonOk = json.daemon64 === "running" || json.daemon32 === "running" || status.daemons.some((item) => item.includes("running")) || /r0zd/.test(processes);
   const zygoteOk = json.zygote64 === "injected" || json.zygote32 === "injected" || status.zygotes.some((item) => /:injected\b/.test(item));
   const score = [monitorOk, daemonOk, zygoteOk].filter(Boolean).length;
 
@@ -260,7 +260,7 @@ function renderDashboard(prop, statusText, processes, modules) {
 
   setDot(els.daemonDot, daemonOk);
   els.daemonState.textContent = daemonOk ? "运行中" : "未运行";
-  els.daemonDetail.textContent = status.daemons.join(" / ") || [json.daemon64 && `daemon64:${json.daemon64}`, json.daemon32 && `daemon32:${json.daemon32}`].filter(Boolean).join(" / ") || (daemonOk ? "进程表发现 zygiskd" : "进程表未发现 zygiskd");
+  els.daemonDetail.textContent = status.daemons.join(" / ") || [json.daemon64 && `daemon64:${json.daemon64}`, json.daemon32 && `daemon32:${json.daemon32}`].filter(Boolean).join(" / ") || (daemonOk ? "进程表发现 r0zd" : "进程表未发现 r0zd");
 
   setDot(els.zygoteDot, zygoteOk);
   els.zygoteState.textContent = zygoteOk ? "已注入" : "未确认";
@@ -286,7 +286,7 @@ async function refreshStatus() {
     `echo '--- status.json ---'`,
     `cat "$MODDIR/status.json" 2>/dev/null || true`,
     `echo '--- processes ---'`,
-    `ps -A 2>/dev/null | grep -E 'zygiskd|zygisk-ptrace|app_process' | grep -v grep || true`,
+    `ps -A 2>/dev/null | grep -E 'r0zd|r0z-trace|app_process' | grep -v grep || true`,
     `echo '--- modules ---'`,
     "for d in /data/adb/modules/*; do if [ -d \"$d/zygisk\" ]; then id=$(basename \"$d\"); name=$(sed -n 's/^name=//p' \"$d/module.prop\" 2>/dev/null | head -n 1); ver=$(sed -n 's/^version=//p' \"$d/module.prop\" 2>/dev/null | head -n 1); state=enabled; [ -f \"$d/disable\" ] && state=disabled; [ -n \"$name\" ] || name=\"$id\"; echo \"$id|$name|$ver|$state\"; fi; done",
   ].join("; ");
@@ -340,7 +340,7 @@ async function sendControl(action) {
     const output = await run([
       locateModuleShell,
       `echo "MODDIR=$MODDIR"`,
-      `if [ -x "$MODDIR/bin/zygisk-ctl" ]; then "$MODDIR/bin/zygisk-ctl" ${action}; else echo "找不到 $MODDIR/bin/zygisk-ctl"; exit 127; fi`,
+      `if [ -x "$MODDIR/bin/r0z-ctl" ]; then "$MODDIR/bin/r0z-ctl" ${action}; else echo "找不到 $MODDIR/bin/r0z-ctl"; exit 127; fi`,
     ].join("; "));
     const detectedDir = (output.match(/MODDIR=([^\n]+)/) || [])[1];
     if (detectedDir && detectedDir.trim()) {

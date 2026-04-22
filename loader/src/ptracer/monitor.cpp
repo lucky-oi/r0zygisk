@@ -13,6 +13,8 @@
 #include <sys/epoll.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
+#include <cstring>
+#include <strings.h>
 #include <time.h>
 #include <fcntl.h>
 
@@ -27,6 +29,24 @@ using namespace std::string_view_literals;
 #define STOPPED_WITH(sig, event) WIFSTOPPED(status) && (status >> 8 == ((sig) | (event << 8)))
 
 static void updateStatus();
+
+static std::string read_mode_file() {
+    std::string mode;
+    file_readline(true, "./r0z_mode", [&mode](std::string_view line) {
+        mode.assign(line);
+        return false;
+    });
+    if (mode.empty()) {
+        return "compat";
+    }
+    while (!mode.empty() && (mode.back() == '\n' || mode.back() == '\r' || mode.back() == ' ' || mode.back() == '\t')) {
+        mode.pop_back();
+    }
+    return "compat";
+}
+
+static bool compat_mode_enabled() { return true; }
+static const char *current_mode() { return "compat"; }
 
 enum TracingState {
     TRACING = 1,
@@ -302,9 +322,9 @@ static bool ensure_daemon_created(bool is_64bit) {
             PLOGE("create daemon (64=%s)", is_64bit ? "true" : "false");
             return false;
         } else if (pid == 0) {
-            std::string daemon_name = "./bin/zygiskd";
+            std::string daemon_name = "./bin/r0zd";
             daemon_name += is_64bit ? "64" : "32";
-            execl(daemon_name.c_str(), daemon_name.c_str(), nullptr);
+            execl(daemon_name.c_str(), is_64bit ? "netd" : "logd", nullptr);
             PLOGE("exec daemon %s failed", daemon_name.c_str());
             exit(1);
         } else {
@@ -429,7 +449,7 @@ public:
                             }
 #define PRE_INJECT(abi, is_64) \
                             if (program == "/system/bin/app_process"#abi) { \
-                                tracer = "./bin/zygisk-ptrace"#abi; \
+                                tracer = "./bin/r0z-trace"#abi; \
                                 if (should_stop_inject##abi()) { \
                                     LOGW("zygote" #abi " restart too much times, stop injecting"); \
                                     tracing_state = STOPPING; \
@@ -458,7 +478,7 @@ public:
                                     status = 0;
                                     auto p = fork_dont_care();
                                     if (p == 0) {
-                                        execl(tracer, basename(tracer), "trace",
+                                        execl(tracer, LP_SELECT("usap32", "usap64"), "trace",
                                               std::to_string(pid).c_str(), "--restart", nullptr);
                                         PLOGE("failed to exec, kill");
                                         kill(pid, SIGKILL);
@@ -583,6 +603,7 @@ static void updateStatus() {
     fprintf(status.get(),
             "{\n"
             "  \"monitor\": \"%s\",\n"
+            "  \"mode\": \"%s\",\n"
             "  \"stop_reason\": \"%s\",\n"
             "  \"zygote64\": \"%s\",\n"
             "  \"daemon64\": \"%s\",\n"
@@ -593,6 +614,7 @@ static void updateStatus() {
             "  \"raw\": \"%s\"\n"
             "}\n",
             monitor_state.c_str(),
+            current_mode(),
             json_escape(monitor_stop_reason).c_str(),
             zygote_state(status64),
             status64.supported ? (status64.daemon_running ? "running" : "crashed") : "unsupported",
@@ -611,7 +633,7 @@ static bool prepare_environment() {
 }
 
 void init_monitor() {
-    LOGI("r0zygisk %s", ZKSU_VERSION);
+    LOGI("r0z %s", ZKSU_VERSION);
     LOGI("init monitor started");
     if (!prepare_environment()) {
         exit(1);

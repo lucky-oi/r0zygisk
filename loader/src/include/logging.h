@@ -6,9 +6,9 @@
 
 #ifndef LOG_TAG
 #if defined(__LP64__)
-# define LOG_TAG "zygisk-core64"
+# define LOG_TAG "r0z-core64"
 #else
-# define LOG_TAG "zygisk-core32"
+# define LOG_TAG "r0z-core32"
 #endif
 #endif
 

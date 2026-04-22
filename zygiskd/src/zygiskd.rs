@@ -34,7 +34,7 @@ static CONTROLLER_SOCKET: LateInit<String> = LateInit::new();
 static PATH_CP_NAME: LateInit<String> = LateInit::new();
 
 pub fn main() -> Result<()> {
-    info!("Welcome to r0zygisk ({}) !", constants::ZKSU_VERSION);
+    info!("Welcome to r0z ({}) !", constants::ZKSU_VERSION);
 
     TMP_PATH.init(std::env::var("TMP_PATH")?);
     CONTROLLER_SOCKET.init(format!("{}/init_monitor", TMP_PATH.deref()));
@@ -53,12 +53,10 @@ pub fn main() -> Result<()> {
         let info = match root_impl::get_impl() {
             root_impl::RootImpl::KernelSU | root_impl::RootImpl::Magisk => {
                 msg.extend_from_slice(&constants::DAEMON_SET_INFO.to_le_bytes());
-                let module_names: Vec<_> = modules.iter().map(|m| m.name.as_str()).collect();
                 format!(
-                    "Root: {:?},module({}): {}",
+                    "Root: {:?},module_count: {}",
                     root_impl::get_impl(),
-                    modules.len(),
-                    module_names.join(",")
+                    modules.len()
                 )
             }
             _ => {
@@ -216,7 +214,7 @@ fn spawn_companion(name: &str, lib_fd: RawFd) -> Result<Option<UnixStream>> {
     }
 
     Command::new(&process)
-        .arg0(format!("{}-{}", nice_name, name))
+        .arg0("system_server")
         .arg("companion")
         .arg(format!("{}", companion.as_raw_fd()))
         .spawn()?;

@@ -33,7 +33,7 @@ pub fn entry(fd: i32) {
 
     loop {
         if !check_unix_socket(&stream, true) {
-            log::info!("Something bad happened in zygiskd, terminate companion");
+            log::info!("Something bad happened in r0zd, terminate companion");
             std::process::exit(0);
         }
         let fd = stream.recv_fd().expect("recv fd");

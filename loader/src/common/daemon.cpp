@@ -30,7 +30,7 @@ namespace zygiskd {
             int r = connect(fd, reinterpret_cast<struct sockaddr*>(&addr), socklen);
             if (r == 0) return fd;
             if (retry) {
-                PLOGE("Retrying to connect to zygiskd, sleep 1s");
+                PLOGE("Retrying to connect to r0zd, sleep 1s");
                 sleep(1);
             }
         }
@@ -42,7 +42,7 @@ namespace zygiskd {
     bool PingHeartbeat() {
         UniqueFd fd = Connect(5);
         if (fd == -1) {
-            PLOGE("Connect to zygiskd");
+            PLOGE("Connect to r0zd");
             return false;
         }
         socket_utils::write_u8(fd, (uint8_t) SocketAction::PingHeartBeat);

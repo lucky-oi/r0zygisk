@@ -3,4 +3,4 @@ name=${moduleName}
 version=${versionName}
 versionCode=${versionCode}
 author=fyrlove,r0ysue
-description=Standalone implementation of Zygisk.
+description=Standalone implementation of r0z.

@@ -6,9 +6,9 @@
 #include "daemon.h"
 
 #ifdef __LP64__
-#define LOG_TAG "zygisk-ptrace64"
+#define LOG_TAG "r0z-trace64"
 #else
-#define LOG_TAG "zygisk-ptrace32"
+#define LOG_TAG "r0z-trace32"
 #endif
 #include "logging.h"
 

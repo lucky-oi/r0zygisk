@@ -47,12 +47,12 @@ androidComponents.onVariants { variant ->
         group = "module"
         dependsOn(
             ":loader:assemble$variantCapped",
-            ":zygiskd:buildAndStrip",
+            ":r0zd:buildAndStrip",
         )
         into(moduleDir)
         from("${rootProject.projectDir}/README.md")
         from("$projectDir/src") {
-            exclude("module.prop", "customize.sh", "post-fs-data.sh", "service.sh", "zygisk-ctl.sh", "mazoku")
+            exclude("module.prop", "customize.sh", "post-fs-data.sh", "service.sh", "r0z-ctl.sh", "mazoku")
             filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
         }
         from("$projectDir/src") {
@@ -66,7 +66,7 @@ androidComponents.onVariants { variant ->
         }
         from("$projectDir/src/mazoku")
         from("$projectDir/src") {
-            include("customize.sh", "post-fs-data.sh", "service.sh", "zygisk-ctl.sh")
+            include("customize.sh", "post-fs-data.sh", "service.sh", "r0z-ctl.sh")
             val tokens = mapOf(
                 "DEBUG" to if (buildTypeLowered == "debug") "true" else "false",
                 "MIN_KSU_VERSION" to "$minKsuVersion",
@@ -78,8 +78,8 @@ androidComponents.onVariants { variant ->
             filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
         }
         into("bin") {
-            from(project(":zygiskd").layout.buildDirectory.file("rustJniLibs/android"))
-            include("**/zygiskd")
+            from(project(":r0zd").layout.buildDirectory.file("rustJniLibs/android"))
+            include("**/r0zd")
         }
         into("lib") {
             from(project(":loader").layout.buildDirectory.file("intermediates/stripped_native_libs/$variantLowered/strip${variantCapped}DebugSymbols/out/lib"))
@@ -124,44 +124,44 @@ androidComponents.onVariants { variant ->
                     set.add(Pair(root.file("mazoku").asFile, null))
                     set.add(
                         Pair(
-                            root.file("lib/libzygisk.so").asFile,
-                            root.file("lib/$abi32/libzygisk.so").asFile
+                            root.file("lib/libr0z.so").asFile,
+                            root.file("lib/$abi32/libr0z.so").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("lib64/libzygisk.so").asFile,
-                            root.file("lib/$abi64/libzygisk.so").asFile
+                            root.file("lib64/libr0z.so").asFile,
+                            root.file("lib/$abi64/libr0z.so").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("bin/zygisk-ptrace32").asFile,
-                            root.file("lib/$abi32/libzygisk_ptrace.so").asFile
+                            root.file("bin/r0z-trace32").asFile,
+                            root.file("lib/$abi32/libr0z_ptrace.so").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("bin/zygisk-ptrace64").asFile,
-                            root.file("lib/$abi64/libzygisk_ptrace.so").asFile
+                            root.file("bin/r0z-trace64").asFile,
+                            root.file("lib/$abi64/libr0z_ptrace.so").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("bin/zygiskd32").asFile,
-                            root.file("bin/$abi32/zygiskd").asFile
+                            root.file("bin/r0zd32").asFile,
+                            root.file("bin/$abi32/r0zd").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("bin/zygiskd64").asFile,
-                            root.file("bin/$abi64/zygiskd").asFile
+                            root.file("bin/r0zd64").asFile,
+                            root.file("bin/$abi64/r0zd").asFile
                         )
                     )
                     set.add(
                         Pair(
-                            root.file("bin/zygisk-ctl").asFile,
-                            root.file("zygisk-ctl.sh").asFile
+                            root.file("bin/r0z-ctl").asFile,
+                            root.file("r0z-ctl.sh").asFile
                         )
                     )
                     sig.initSign(privKey)

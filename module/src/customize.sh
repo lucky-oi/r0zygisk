@@ -31,7 +31,7 @@ if [ "$BOOTMODE" ] && [ "$KSU" ]; then
   if [ "$(which magisk)" ]; then
     ui_print "*********************************************************"
     ui_print "! Multiple root implementation is NOT supported!"
-    ui_print "! Please uninstall Magisk before installing r0zygisk"
+    ui_print "! Please uninstall Magisk before installing r0z"
     abort    "*********************************************************"
   fi
 elif [ "$BOOTMODE" ] && [ "$MAGISK_VER_CODE" ]; then
@@ -50,7 +50,7 @@ else
 fi
 
 VERSION=$(grep_prop version "${TMPDIR}/module.prop")
-ui_print "- Installing r0zygisk $VERSION"
+ui_print "- Installing r0z $VERSION"
 
 # check android
 if [ "$API" -lt 26 ]; then
@@ -94,7 +94,7 @@ ui_print "- Extracting module files"
 extract "$ZIPFILE" 'module.prop'     "$MODPATH"
 extract "$ZIPFILE" 'post-fs-data.sh' "$MODPATH"
 extract "$ZIPFILE" 'service.sh'      "$MODPATH"
-extract "$ZIPFILE" 'zygisk-ctl.sh'   "$MODPATH"
+extract "$ZIPFILE" 'r0z-ctl.sh'      "$MODPATH"
 extract "$ZIPFILE" 'mazoku'          "$MODPATH"
 mkdir -p "$MODPATH/webroot"
 extract "$ZIPFILE" 'webroot/index.html' "$MODPATH"
@@ -105,39 +105,39 @@ mv "$TMPDIR/sepolicy.rule" "$MODPATH"
 mkdir "$MODPATH/bin"
 mkdir "$MODPATH/lib"
 mkdir "$MODPATH/lib64"
-mv "$MODPATH/zygisk-ctl.sh" "$MODPATH/bin/zygisk-ctl"
+mv "$MODPATH/r0z-ctl.sh" "$MODPATH/bin/r0z-ctl"
 
 if [ "$ARCH" = "x86" ] || [ "$ARCH" = "x64" ]; then
   ui_print "- Extracting x86 libraries"
-  extract "$ZIPFILE" 'bin/x86/zygiskd' "$MODPATH/bin" true
-  mv "$MODPATH/bin/zygiskd" "$MODPATH/bin/zygiskd32"
-  extract "$ZIPFILE" 'lib/x86/libzygisk.so' "$MODPATH/lib" true
-  extract "$ZIPFILE" 'lib/x86/libzygisk_ptrace.so' "$MODPATH/bin" true
-  mv "$MODPATH/bin/libzygisk_ptrace.so" "$MODPATH/bin/zygisk-ptrace32"
+  extract "$ZIPFILE" 'bin/x86/r0zd' "$MODPATH/bin" true
+  mv "$MODPATH/bin/r0zd" "$MODPATH/bin/r0zd32"
+  extract "$ZIPFILE" 'lib/x86/libr0z.so' "$MODPATH/lib" true
+  extract "$ZIPFILE" 'lib/x86/libr0z_ptrace.so' "$MODPATH/bin" true
+  mv "$MODPATH/bin/libr0z_ptrace.so" "$MODPATH/bin/r0z-trace32"
 
   ui_print "- Extracting x64 libraries"
-  extract "$ZIPFILE" 'bin/x86_64/zygiskd' "$MODPATH/bin" true
-  mv "$MODPATH/bin/zygiskd" "$MODPATH/bin/zygiskd64"
-  extract "$ZIPFILE" 'lib/x86_64/libzygisk.so' "$MODPATH/lib64" true
-  extract "$ZIPFILE" 'lib/x86_64/libzygisk_ptrace.so' "$MODPATH/bin" true
-  mv "$MODPATH/bin/libzygisk_ptrace.so" "$MODPATH/bin/zygisk-ptrace64"
+  extract "$ZIPFILE" 'bin/x86_64/r0zd' "$MODPATH/bin" true
+  mv "$MODPATH/bin/r0zd" "$MODPATH/bin/r0zd64"
+  extract "$ZIPFILE" 'lib/x86_64/libr0z.so' "$MODPATH/lib64" true
+  extract "$ZIPFILE" 'lib/x86_64/libr0z_ptrace.so' "$MODPATH/bin" true
+  mv "$MODPATH/bin/libr0z_ptrace.so" "$MODPATH/bin/r0z-trace64"
 
   extract "$ZIPFILE" 'machikado.x86' "$MODPATH" true
   mv "$MODPATH/machikado.x86" "$MODPATH/machikado"
 else
   ui_print "- Extracting arm libraries"
-  extract "$ZIPFILE" 'bin/armeabi-v7a/zygiskd' "$MODPATH/bin" true
-  mv "$MODPATH/bin/zygiskd" "$MODPATH/bin/zygiskd32"
-  extract "$ZIPFILE" 'lib/armeabi-v7a/libzygisk.so' "$MODPATH/lib" true
-  extract "$ZIPFILE" 'lib/armeabi-v7a/libzygisk_ptrace.so' "$MODPATH/bin" true
-  mv "$MODPATH/bin/libzygisk_ptrace.so" "$MODPATH/bin/zygisk-ptrace32"
+  extract "$ZIPFILE" 'bin/armeabi-v7a/r0zd' "$MODPATH/bin" true
+  mv "$MODPATH/bin/r0zd" "$MODPATH/bin/r0zd32"
+  extract "$ZIPFILE" 'lib/armeabi-v7a/libr0z.so' "$MODPATH/lib" true
+  extract "$ZIPFILE" 'lib/armeabi-v7a/libr0z_ptrace.so' "$MODPATH/bin" true
+  mv "$MODPATH/bin/libr0z_ptrace.so" "$MODPATH/bin/r0z-trace32"
 
   ui_print "- Extracting arm64 libraries"
-  extract "$ZIPFILE" 'bin/arm64-v8a/zygiskd' "$MODPATH/bin" true
-  mv "$MODPATH/bin/zygiskd" "$MODPATH/bin/zygiskd64"
-  extract "$ZIPFILE" 'lib/arm64-v8a/libzygisk.so' "$MODPATH/lib64" true
-  extract "$ZIPFILE" 'lib/arm64-v8a/libzygisk_ptrace.so' "$MODPATH/bin" true
-  mv "$MODPATH/bin/libzygisk_ptrace.so" "$MODPATH/bin/zygisk-ptrace64"
+  extract "$ZIPFILE" 'bin/arm64-v8a/r0zd' "$MODPATH/bin" true
+  mv "$MODPATH/bin/r0zd" "$MODPATH/bin/r0zd64"
+  extract "$ZIPFILE" 'lib/arm64-v8a/libr0z.so' "$MODPATH/lib64" true
+  extract "$ZIPFILE" 'lib/arm64-v8a/libr0z_ptrace.so' "$MODPATH/bin" true
+  mv "$MODPATH/bin/libr0z_ptrace.so" "$MODPATH/bin/r0z-trace64"
 
   extract "$ZIPFILE" 'machikado.arm' "$MODPATH" true
   mv "$MODPATH/machikado.arm" "$MODPATH/machikado"
@@ -149,7 +149,7 @@ set_perm_recursive "$MODPATH/lib" 0 0 0755 0644 u:object_r:system_lib_file:s0
 set_perm_recursive "$MODPATH/lib64" 0 0 0755 0644 u:object_r:system_lib_file:s0
 set_perm_recursive "$MODPATH/webroot" 0 0 0755 0644
 
-# If Huawei's Maple is enabled, system_server is created with a special way which is out of Zygisk's control
+# If Huawei's Maple is enabled, system_server is created with a special way which is out of r0z's control
 HUAWEI_MAPLE_ENABLED=$(grep_prop ro.maple.enable)
 if [ "$HUAWEI_MAPLE_ENABLED" == "1" ]; then
   ui_print "- Add ro.maple.enable=0"
