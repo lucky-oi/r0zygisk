@@ -94,7 +94,7 @@ If `module/private_key` and `module/public_key` are absent, the module still bui
 
 `PROCESS_ON_DENYLIST` cannot be flagged correctly for isolated processes on Magisk DenyList currently.
 
-r0z only guarantees r0z API compatibility. It does not guarantee Magisk internal private behaviors.
+r0z only guarantees zygisk API compatibility. It does not guarantee Magisk internal private behaviors.
 
 ## Features
 

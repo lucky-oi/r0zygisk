@@ -94,7 +94,7 @@ r0z-v1.0.2-3-release.zip
 
 目前在 Magisk DenyList 下，隔离进程的 `PROCESS_ON_DENYLIST` 标记还不能被正确设置。
 
-r0z 只保证 r0z API 层面的行为兼容，不保证 Magisk 内部私有功能也保持一致。
+r0z 只保证 zygisk API 层面的行为兼容，不保证 Magisk 内部私有功能也保持一致。
 
 ## 当前能力
 
