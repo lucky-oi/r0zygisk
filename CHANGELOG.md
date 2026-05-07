@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.4
+
+### Changed
+
++ Bumped module version to `v1.0.4` and `versionCode` to `5`
++ 处理 native bridge：保留 zygote 早期注入路径，同时在确认 zygote injected 后隐藏 `ro.dalvik.vm.native.bridge`
++ Updated Web UI bridge status text to reflect the bootstrap-then-hide behavior
+
+### Notes
+
++ This release focuses on reducing persistent native bridge exposure while preserving the existing injection path
++ Existing APatch / KernelSU / Magisk compatibility is preserved
++ Release package naming follows `r0z-v1.0.4-5-<buildType>.zip`
+
 ## v1.0.3
 
 ### Added
@@ -16,7 +30,6 @@ All notable changes to this project will be documented in this file.
 + Bumped module version to `v1.0.3` and `versionCode` to `4`
 + Updated Web UI root description and module scanning logic to include APatch environments
 + Added an APatch unmount compatibility path that currently follows the Magisk-style `/data/adb` cleanup strategy
-+ 处理 native bridge：保留 zygote 早期注入路径，同时在确认 zygote injected 后隐藏 `ro.dalvik.vm.native.bridge`
 
 ### Notes
 
