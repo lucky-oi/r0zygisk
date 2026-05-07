@@ -24,7 +24,4 @@ fi
 
 export TMP_PATH="$MODDIR"
 [ "$DEBUG" = true ] && export RUST_BACKTRACE=1
-if command -v resetprop >/dev/null 2>&1; then
-  resetprop ro.dalvik.vm.native.bridge libzn_loader.so
-fi
 ./bin/r0zd service-stage

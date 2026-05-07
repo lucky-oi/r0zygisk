@@ -100,6 +100,10 @@ pub fn main() -> Result<()> {
 }
 
 fn update_status_json(zygote_injected: bool, daemon_info: &str) -> Result<()> {
+    if zygote_injected {
+        hide_native_bridge_property();
+    }
+
     let mut raw = String::new();
     let arch_suffix = if cfg!(target_pointer_width = "64") {
         "64"
@@ -135,6 +139,16 @@ fn update_status_json(zygote_injected: bool, daemon_info: &str) -> Result<()> {
     };
     fs::write(STATUS_PATH.deref(), json)?;
     Ok(())
+}
+
+fn hide_native_bridge_property() {
+    let status = Command::new("resetprop")
+        .arg("ro.dalvik.vm.native.bridge")
+        .arg("0")
+        .status();
+    if let Err(e) = status {
+        warn!("failed to hide native bridge property: {}", e);
+    }
 }
 
 fn get_arch() -> Result<&'static str> {

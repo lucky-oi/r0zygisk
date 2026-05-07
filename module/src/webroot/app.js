@@ -244,14 +244,23 @@ function renderDashboard(prop, statusText, processes, modules) {
   const json = status.json || {};
   const daemonOk = json.daemon64 === "running" || json.daemon32 === "running" || status.daemons.some((item) => item.includes("running")) || /r0zd/.test(processes);
   const zygoteOk = json.zygote64 === "injected" || json.zygote32 === "injected" || status.zygotes.some((item) => /:injected\b/.test(item));
-  const bridgeOk = Boolean(prop["native.bridge"] || /libzn_loader\.so/.test(statusText));
-  const score = [bridgeOk, daemonOk, zygoteOk].filter(Boolean).length;
+  const bridgeValue = (prop["native.bridge"] || "").trim();
+  const bridgeBootstrap = bridgeValue === "libzn_loader.so";
+  const bridgeHidden = bridgeValue === "" || bridgeValue === "0";
+  const bridgeStateOk = bridgeBootstrap || bridgeHidden;
+  const score = [bridgeStateOk, daemonOk, zygoteOk].filter(Boolean).length;
 
   els.healthScore.textContent = `${score}/3`;
   els.monitorTitle.textContent = zygoteOk ? "已注入" : daemonOk ? "等待 zygote 回写" : "等待 daemon 启动";
-  els.monitorDesc.textContent = bridgeOk
-    ? "native bridge 已配置，当前等待 daemon 与 zygote 完成状态回写。"
-    : "还没有确认 native bridge 已生效，可能需要完整重启后再刷新。";
+  if (zygoteOk && bridgeHidden) {
+    els.monitorDesc.textContent = "native bridge 只在引导窗口短时暴露；当前属性已回落为 0，保留 daemon 与 zygote 注入状态。";
+  } else if (bridgeBootstrap) {
+    els.monitorDesc.textContent = "native bridge 仍处于引导窗口，等待 daemon 与 zygote 完成状态回写后隐藏属性。";
+  } else if (daemonOk && bridgeHidden) {
+    els.monitorDesc.textContent = "native bridge 属性已隐藏，当前等待 zygote 完成最终状态回写。";
+  } else {
+    els.monitorDesc.textContent = "还没有确认 native bridge 引导窗口是否完成，可能需要完整重启后再刷新。";
+  }
 
   setDot(els.daemonDot, daemonOk);
   els.daemonState.textContent = daemonOk ? "运行中" : "未运行";

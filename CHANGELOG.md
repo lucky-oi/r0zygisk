@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 + Bumped module version to `v1.0.3` and `versionCode` to `4`
 + Updated Web UI root description and module scanning logic to include APatch environments
 + Added an APatch unmount compatibility path that currently follows the Magisk-style `/data/adb` cleanup strategy
++ 处理 native bridge：保留 zygote 早期注入路径，同时在确认 zygote injected 后隐藏 `ro.dalvik.vm.native.bridge`
 
 ### Notes
 

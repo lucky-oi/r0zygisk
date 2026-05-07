@@ -23,15 +23,21 @@ fi
 export TMP_PATH="$MODDIR"
 [ "$DEBUG" = true ] && export RUST_BACKTRACE=1
 
-if command -v resetprop >/dev/null 2>&1; then
-  resetprop ro.dalvik.vm.native.bridge libzn_loader.so
-fi
+BRIDGE_PROP="ro.dalvik.vm.native.bridge"
+BRIDGE_LOADER="libzn_loader.so"
+
+set_native_bridge() {
+  if command -v resetprop >/dev/null 2>&1; then
+    resetprop "$BRIDGE_PROP" "$BRIDGE_LOADER"
+  fi
+}
+
+hide_native_bridge() {
+  if command -v resetprop >/dev/null 2>&1; then
+    resetprop "$BRIDGE_PROP" 0
+  fi
+}
+
+set_native_bridge
 
 ./bin/r0zd daemon </dev/null >/dev/null 2>&1 &
-
-# Avoid a race where zygote loads native bridge before daemon socket is ready.
-for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-  [ -S "$MODDIR/cp64.sock" ] && break
-  [ -S "$MODDIR/cp32.sock" ] && break
-  sleep 0.2
-done
