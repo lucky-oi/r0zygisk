@@ -4,7 +4,6 @@ SKIPUNZIP=1
 DEBUG=@DEBUG@
 MIN_KSU_VERSION=@MIN_KSU_VERSION@
 MIN_KSUD_VERSION=@MIN_KSUD_VERSION@
-MAX_KSU_VERSION=@MAX_KSU_VERSION@
 MIN_MAGISK_VERSION=@MIN_MAGISK_VERSION@
 
 if [ "$BOOTMODE" ] && [ "$KSU" ]; then
@@ -15,23 +14,11 @@ if [ "$BOOTMODE" ] && [ "$KSU" ]; then
     ui_print "! KernelSU version is too old!"
     ui_print "! Please update KernelSU to latest version"
     abort    "*********************************************************"
-  elif [ "$KSU_KERNEL_VER_CODE" -ge "$MAX_KSU_VERSION" ]; then
-    ui_print "*********************************************************"
-    ui_print "! KernelSU version abnormal!"
-    ui_print "! Please integrate KernelSU into your kernel"
-    ui_print "  as submodule instead of copying the source code"
-    abort    "*********************************************************"
   fi
   if ! [ "$KSU_VER_CODE" ] || [ "$KSU_VER_CODE" -lt "$MIN_KSUD_VERSION" ]; then
     ui_print "*********************************************************"
     ui_print "! ksud version is too old!"
     ui_print "! Please update KernelSU Manager to latest version"
-    abort    "*********************************************************"
-  fi
-  if [ "$(which magisk)" ]; then
-    ui_print "*********************************************************"
-    ui_print "! Multiple root implementation is NOT supported!"
-    ui_print "! Please uninstall Magisk before installing r0z"
     abort    "*********************************************************"
   fi
 elif [ "$BOOTMODE" ] && [ "$MAGISK_VER_CODE" ]; then
@@ -189,6 +176,49 @@ set_perm_recursive "$MODPATH/system" 0 0 0755 0644
 set_perm_recursive "$MODPATH/system/lib" 0 0 0755 0644 u:object_r:system_lib_file:s0
 set_perm_recursive "$MODPATH/system/lib64" 0 0 0755 0644 u:object_r:system_lib_file:s0
 set_perm_recursive "$MODPATH/webroot" 0 0 0755 0644
+
+ui_print "- Ensure hide config created"
+mkdir -p /data/adb/zygisksu
+rm -f /data/local/tmp/r0z_r0zd 2>/dev/null
+
+if [ ! -f /data/adb/zygisksu/denylist ]; then
+  cat > /data/adb/zygisksu/denylist <<'DENYLIST'
+# r0z denylist - one package name per line
+# Lines starting with # are comments
+# Edit this file and reboot to apply changes
+
+com.globe.gcash.android
+io.github.vvb2060.mahoshojo
+com.xff.launch
+DENYLIST
+fi
+
+if ! grep -qx 'com.globe.gcash.android' /data/adb/zygisksu/denylist 2>/dev/null; then
+  printf '\ncom.globe.gcash.android\n' >> /data/adb/zygisksu/denylist
+fi
+
+if ! grep -qx 'io.github.vvb2060.mahoshojo' /data/adb/zygisksu/denylist 2>/dev/null; then
+  printf '\nio.github.vvb2060.mahoshojo\n' >> /data/adb/zygisksu/denylist
+fi
+
+if ! grep -qx 'com.xff.launch' /data/adb/zygisksu/denylist 2>/dev/null; then
+  printf '\ncom.xff.launch\n' >> /data/adb/zygisksu/denylist
+fi
+
+printf 'force\n' > "$MODPATH/denylist_policy"
+
+mkdir -p "$MODPATH/.hide/empty"
+: > "$MODPATH/.hide/empty_file"
+chmod 0700 "$MODPATH/.hide"
+chmod 0700 "$MODPATH/.hide/empty"
+chmod 0600 "$MODPATH/.hide/empty_file"
+
+ui_print "- Clean stale compatibility markers"
+for compat_dir in "$(dirname "$MODPATH")/zygisk_next" "$(dirname "$MODPATH")/zygisksu" "$(dirname "$MODPATH")/rezygisk"; do
+  if [ -f "$compat_dir/.r0z_compat_marker" ]; then
+    rm -rf "$compat_dir" 2>/dev/null
+  fi
+done
 
 # If Huawei's Maple is enabled, system_server is created with a special way which is out of r0z's control
 HUAWEI_MAPLE_ENABLED=$(grep_prop ro.maple.enable)

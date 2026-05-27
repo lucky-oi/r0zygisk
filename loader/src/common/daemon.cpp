@@ -59,7 +59,7 @@ namespace r0zd {
         return fd;
     }
 
-    uint32_t GetProcessFlags(uid_t uid) {
+    uint32_t GetProcessFlags(uid_t uid, std::string_view process) {
         UniqueFd fd = Connect(1);
         if (fd == -1) {
             PLOGE("GetProcessFlags");
@@ -67,6 +67,7 @@ namespace r0zd {
         }
         socket_utils::write_u8(fd, (uint8_t) SocketAction::GetProcessFlags);
         socket_utils::write_u32(fd, uid);
+        socket_utils::write_string(fd, process);
         return socket_utils::read_u32(fd);
     }
 

@@ -1,4 +1,4 @@
-use crate::constants::{MAX_KSU_VERSION, MIN_KSU_VERSION};
+use crate::constants::MIN_KSU_VERSION;
 
 const KERNEL_SU_OPTION: u32 = 0xdeadbeefu32;
 
@@ -9,7 +9,6 @@ const CMD_UID_SHOULD_UMOUNT: usize = 13;
 pub enum Version {
     Supported,
     TooOld,
-    Abnormal,
 }
 
 pub fn get_kernel_su() -> Option<Version> {
@@ -23,12 +22,12 @@ pub fn get_kernel_su() -> Option<Version> {
             0,
         )
     };
-    const MAX_OLD_VERSION: i32 = MIN_KSU_VERSION - 1;
-    match version {
-        0 => None,
-        MIN_KSU_VERSION..=MAX_KSU_VERSION => Some(Version::Supported),
-        1..=MAX_OLD_VERSION => Some(Version::TooOld),
-        _ => Some(Version::Abnormal),
+    if version == 0 {
+        None
+    } else if version < MIN_KSU_VERSION {
+        Some(Version::TooOld)
+    } else {
+        Some(Version::Supported)
     }
 }
 

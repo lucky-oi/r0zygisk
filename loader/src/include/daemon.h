@@ -60,6 +60,7 @@ namespace r0zd {
         GetModuleDir,
         ZygoteRestart,
         SystemServerStarted,
+        ConfigureApatchExclude,
     };
 
     void Init(const char *path);
@@ -72,7 +73,7 @@ namespace r0zd {
 
     std::vector<Module> ReadModules();
 
-    uint32_t GetProcessFlags(uid_t uid);
+    uint32_t GetProcessFlags(uid_t uid, std::string_view process);
 
     int ConnectCompanion(size_t index);
 

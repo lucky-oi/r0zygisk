@@ -2,6 +2,11 @@
 
 [中文说明](./README.zh-CN.md)
 
+## Tested Stable Environment
+
++ Redmi Note 13
++ Device link: <https://zmoxu.xetlk.com/s/3hfl3O>
+
 Standalone implementation of zygisk, providing zygisk API support for KernelSU and a replacement for Magisk's built-in zygisk.
 
 ## Current Runtime

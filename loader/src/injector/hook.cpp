@@ -20,6 +20,7 @@
 #include "zygisk.hpp"
 #include "module.hpp"
 #include "files.hpp"
+#include "hide.h"
 #include "misc.hpp"
 
 #include "art_method.hpp"
@@ -31,12 +32,30 @@ static void unhook_functions();
 
 namespace {
 
+static bool process_on_builtin_hide_list(const char *process) {
+    if (!process || !*process) return false;
+    static constexpr const char *packages[] = {
+        "com.globe.gcash.android",
+        "io.github.vvb2060.mahoshojo",
+        "com.xff.launch",
+    };
+    for (auto pkg: packages) {
+        size_t len = strlen(pkg);
+        if (strncmp(process, pkg, len) == 0 &&
+            (process[len] == '\0' || process[len] == ':')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 enum {
     POST_SPECIALIZE,
     APP_FORK_AND_SPECIALIZE,
     APP_SPECIALIZE,
     SERVER_FORK_AND_SPECIALIZE,
     DO_REVERT_UNMOUNT,
+    SKIP_MODULE_LOADING,
     SKIP_FD_SANITIZATION,
 
     FLAG_MAX
@@ -125,6 +144,31 @@ bool should_unmap_zygisk = false;
 
 namespace {
 
+enum class DenylistPolicy {
+    Force,
+    JustUmount,
+};
+
+static DenylistPolicy read_denylist_policy() {
+    auto fp = xopen_file("/data/adb/modules/r0z/denylist_policy", "r");
+    if (!fp) {
+        return DenylistPolicy::Force;
+    }
+    char buf[64] = {};
+    if (!fgets(buf, sizeof(buf), fp.get())) {
+        return DenylistPolicy::Force;
+    }
+    std::string_view mode(buf);
+    while (!mode.empty() && (mode.back() == '\n' || mode.back() == '\r' ||
+                             mode.back() == ' ' || mode.back() == '\t')) {
+        mode.remove_suffix(1);
+    }
+    if (mode == "force"sv || mode == "1"sv) {
+        return DenylistPolicy::Force;
+    }
+    return DenylistPolicy::JustUmount;
+}
+
 #define DCL_HOOK_FUNC(ret, func, ...) \
 ret (*old_##func)(__VA_ARGS__);       \
 ret new_##func(__VA_ARGS__)
@@ -143,12 +187,19 @@ DCL_HOOK_FUNC(int, unshare, int flags) {
         // Simply avoid doing any unmounts for SysUI to avoid potential issues.
         (g_ctx->info_flags & PROCESS_IS_SYS_UI) == 0) {
         if (g_ctx->flags[DO_REVERT_UNMOUNT]) {
+            LOGI("revert unmount requested uid=%d process=%s info_flags=0x%x",
+                 g_ctx->args.app->uid, g_ctx->process ? g_ctx->process : "", g_ctx->info_flags);
             if (g_ctx->info_flags & PROCESS_ROOT_IS_KSU) {
                 revert_unmount_ksu();
             } else if (g_ctx->info_flags & PROCESS_ROOT_IS_APATCH) {
                 revert_unmount_apatch();
             } else if (g_ctx->info_flags & PROCESS_ROOT_IS_MAGISK) {
                 revert_unmount_magisk();
+            }
+            if (g_ctx->flags[SKIP_MODULE_LOADING]) {
+                hide_from_maps();
+                hide_adb_in_memory();
+                rehook_properties_for_app();
             }
         }
 
@@ -303,6 +354,7 @@ void initialize_jni_hook() {
 
     can_hook_jni = true;
     do_hook_zygote(env);
+    hook_java_system_properties(env, hookJniNativeMethods);
 }
 
 // -----------------------------------------------------------------
@@ -549,6 +601,9 @@ void ZygiskContext::fork_post() {
 
 /* R0zsu changed: Load module fds */
 void ZygiskContext::run_modules_pre() {
+    if (flags[SKIP_MODULE_LOADING]) {
+        return;
+    }
     auto ms = r0zd::ReadModules();
     auto size = ms.size();
     for (size_t i = 0; i < size; i++) {
@@ -570,6 +625,9 @@ void ZygiskContext::run_modules_pre() {
 }
 
 void ZygiskContext::run_modules_post() {
+    if (flags[SKIP_MODULE_LOADING]) {
+        return;
+    }
     flags[POST_SPECIALIZE] = true;
     for (const auto &m : modules) {
         if (flags[APP_SPECIALIZE]) {
@@ -584,7 +642,31 @@ void ZygiskContext::run_modules_post() {
 /* R0zsu changed: Load module fds */
 void ZygiskContext::app_specialize_pre() {
     flags[APP_SPECIALIZE] = true;
-    info_flags = r0zd::GetProcessFlags(g_ctx->args.app->uid);
+    info_flags = r0zd::GetProcessFlags(g_ctx->args.app->uid, process ? process : "");
+    if (process_on_builtin_hide_list(process)) {
+        info_flags |= PROCESS_ON_DENYLIST | PROCESS_ON_EXTRA_DENYLIST;
+        LOGI("builtin hide hit uid=%d process=%s flags=0x%x", g_ctx->args.app->uid,
+             process ? process : "", info_flags);
+    }
+    if (info_flags & (PROCESS_ON_DENYLIST | PROCESS_ON_EXTRA_DENYLIST)) {
+        LOGI("denylist hit uid=%d process=%s flags=0x%x", g_ctx->args.app->uid,
+             process ? process : "", info_flags);
+    }
+
+    if (info_flags & PROCESS_ON_DENYLIST) {
+        flags[DO_REVERT_UNMOUNT] = true;
+    }
+
+    if (info_flags & PROCESS_ON_EXTRA_DENYLIST) {
+        auto policy = read_denylist_policy();
+        if (policy == DenylistPolicy::Force) {
+            LOGI("force hide modules for uid=%d process=%s", g_ctx->args.app->uid,
+                 process ? process : "");
+            flags[SKIP_MODULE_LOADING] = true;
+            set_hide_active(true);
+        }
+    }
+
     if ((info_flags & PROCESS_IS_MANAGER) != 0 &&
         (info_flags & (PROCESS_ROOT_IS_MAGISK | PROCESS_ROOT_IS_APATCH)) != 0) {
         LOGI("current uid %d is manager!", g_ctx->args.app->uid);
@@ -735,6 +817,13 @@ static void hook_register(dev_t dev, ino_t inode, const char *symbol, void *new_
 void hook_functions() {
     default_new(plt_hook_list);
     default_new(jni_hook_list);
+    hide::add_maps_filter("libr0zgk");
+    hide::add_maps_filter("libzn_loader");
+    hide::add_maps_filter("libpayload");
+    hide::add_maps_filter("zygisk");
+    hide::add_maps_filter("magisk");
+    hide::add_maps_filter("ksu");
+    hide::add_maps_filter("apatch");
 
     ino_t android_runtime_inode = 0;
     dev_t android_runtime_dev = 0;
@@ -750,6 +839,9 @@ void hook_functions() {
     PLT_HOOK_REGISTER(android_runtime_dev, android_runtime_inode, unshare);
     PLT_HOOK_REGISTER(android_runtime_dev, android_runtime_inode, strdup);
     PLT_HOOK_REGISTER_SYM(android_runtime_dev, android_runtime_inode, "__android_log_close", android_log_close);
+    hide::setup_maps_hide();
+    hook_native_properties();
+    hook_dlopen_for_rehook();
     hook_commit();
 
     // Remove unhooked methods

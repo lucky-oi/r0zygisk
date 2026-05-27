@@ -2,6 +2,7 @@ use std::fs;
 use std::os::android::fs::MetadataExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use anyhow::Result;
 
 const APATCH_WORK_DIR: &str = "/data/adb/ap";
 const APATCH_DAEMON_PATH: &str = "/data/adb/apd";
@@ -18,6 +19,8 @@ struct PackageConfig {
     exclude: i32,
     allow: i32,
     uid: i32,
+    to_uid: i32,
+    sctx: String,
 }
 
 pub fn get_apatch() -> Option<Version> {
@@ -65,6 +68,29 @@ pub fn uid_is_manager(uid: i32) -> bool {
     })
 }
 
+pub fn set_package_exclude(pkg: &str, exclude: bool) -> Result<()> {
+    let mut configs = read_package_configs();
+
+    if let Some(config) = configs.iter_mut().find(|config| config.pkg == pkg) {
+        config.exclude = if exclude { 1 } else { 0 };
+    } else if exclude {
+        let uid = resolve_package_uid(pkg).ok_or_else(|| anyhow::anyhow!("无法解析 {pkg} 的 uid"))?;
+        configs.push(PackageConfig {
+            pkg: pkg.to_string(),
+            exclude: 1,
+            allow: 0,
+            uid,
+            to_uid: 0,
+            sctx: "u:r:untrusted_app:s0".to_string(),
+        });
+    } else {
+        return Ok(());
+    }
+
+    configs.retain(|config| config.exclude != 0 || config.allow != 0);
+    write_package_configs(&configs)
+}
+
 fn packages_for_uid(uid: i32) -> Vec<String> {
     Command::new("pm")
         .args(["list", "packages", "--uid", &uid.to_string()])
@@ -82,6 +108,22 @@ fn packages_for_uid(uid: i32) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn resolve_package_uid(pkg: &str) -> Option<i32> {
+    Command::new("pm")
+        .args(["list", "packages", "-U", pkg])
+        .stdout(Stdio::piped())
+        .spawn()
+        .ok()
+        .and_then(|child| child.wait_with_output().ok())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .and_then(|output| {
+            output
+                .lines()
+                .find_map(|line| line.strip_prefix(&format!("package:{pkg} uid:")))
+                .and_then(|uid| uid.trim().parse::<i32>().ok())
+        })
 }
 
 fn read_package_configs() -> Vec<PackageConfig> {
@@ -102,13 +144,31 @@ fn parse_package_config(line: &str) -> Option<PackageConfig> {
     let allow = parts.next()?.trim().parse().ok()?;
     let uid = parts.next()?.trim().parse().ok()?;
     let _to_uid = parts.next()?.trim().parse::<i32>().ok()?;
-    let _sctx = parts.next()?.trim();
+    let sctx = parts.next()?.trim();
     Some(PackageConfig {
         pkg,
         exclude,
         allow,
         uid,
+        to_uid: _to_uid,
+        sctx: sctx.to_string(),
     })
+}
+
+fn write_package_configs(configs: &[PackageConfig]) -> Result<()> {
+    let mut lines = Vec::with_capacity(configs.len() + 1);
+    lines.push("pkg,exclude,allow,uid,to_uid,sctx".to_string());
+    for config in configs {
+        if config.exclude == 0 && config.allow == 0 {
+            continue;
+        }
+        lines.push(format!(
+            "{},{},{},{},{},{}",
+            config.pkg, config.exclude, config.allow, config.uid, config.to_uid, config.sctx
+        ));
+    }
+    let content = format!("{}\n", lines.join("\n"));
+    fs::write(APATCH_PACKAGE_CONFIG, content).map_err(Into::into)
 }
 
 fn same_app_id(lhs: i32, rhs: i32) -> bool {

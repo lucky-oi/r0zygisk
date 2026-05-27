@@ -2,6 +2,11 @@
 
 [English](./README.md)
 
+## 已稳定测试环境
+
++ 红米 Note 13
++ 手机链接：<https://zmoxu.xetlk.com/s/3hfl3O>
+
 r0z 是一个独立实现的 zygisk，提供对 zygisk API 的支持，可用于 KernelSU，并可替代 Magisk 内置的 zygisk。
 
 ## 当前运行方式
@@ -23,7 +28,7 @@ r0z 是一个独立实现的 zygisk，提供对 zygisk API 的支持，可用于
 ### 环境要求
 
 + JDK 17
-+ python 3.11.x
++ Python 3.11.x
 + Android SDK
 + Android NDK `26.1.10909125`
 + Rust nightly

@@ -77,6 +77,10 @@ namespace lsplant::art {
         inline static size_t art_method_size = 0;
         inline static size_t entry_point_offset = 0;
         inline static size_t data_offset = 0;
+
+    public:
+        static size_t GetDataOffset() { return data_offset; }
+        static size_t GetEntryPointOffset() { return entry_point_offset; }
     };
 
 }  // namespace lsplant::art

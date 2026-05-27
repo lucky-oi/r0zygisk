@@ -56,6 +56,36 @@
       </div>
     </section>
 
+    <section id="denylistPanel" class="panel denylist-panel" style="display:none">
+      <div class="section-title">
+        <div>
+          <p class="label">Denylist</p>
+          <h2>隐藏 root 的应用列表</h2>
+        </div>
+        <div class="actions">
+          <button id="addAppBtn" class="button primary small" type="button">选择应用</button>
+          <button id="refreshDenylist" class="button secondary small" type="button">刷新</button>
+        </div>
+      </div>
+      <p class="muted" style="margin:0 0 12px">列入此列表的应用将自动隐藏 root 痕迹（unmount）。支持通过应用选择器添加或手动输入包名。</p>
+      <div class="denylist-manual-row">
+        <input id="manualPkg" type="text" placeholder="手动输入包名，如 com.example.app" class="denylist-input">
+        <button id="manualAddBtn" class="button primary small" type="button">添加</button>
+      </div>
+      <div id="denylistEntries" class="list empty">正在加载 denylist...</div>
+    </section>
+
+    <div id="appPickerModal" class="modal-overlay" style="display:none">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>选择要隐藏 root 的应用</h2>
+          <button id="closePicker" class="button secondary small" type="button">关闭</button>
+        </div>
+        <input id="pickerSearch" type="text" placeholder="搜索包名..." class="denylist-input" style="margin-bottom:12px">
+        <div id="pickerResults" class="picker-list">正在加载应用列表...</div>
+      </div>
+    </div>
+
     <section class="grid two">
       <article class="panel">
         <div class="section-title">

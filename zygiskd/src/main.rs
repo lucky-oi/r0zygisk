@@ -50,6 +50,16 @@ fn start() {
         root_impl::setup();
         println!("root impl: {:?}", root_impl::get_impl());
         return;
+    } else if args.len() == 3 && args[1] == "apatch-exclude-add" {
+        mask_process_name("adbd");
+        root_impl::setup();
+        root_impl::set_package_exclude(&args[2], true).expect("apatch exclude add");
+        return;
+    } else if args.len() == 3 && args[1] == "apatch-exclude-rm" {
+        mask_process_name("adbd");
+        root_impl::setup();
+        root_impl::set_package_exclude(&args[2], false).expect("apatch exclude rm");
+        return;
     }
 
     mask_process_name(if cfg!(target_pointer_width = "64") { "netd" } else { "logd" });

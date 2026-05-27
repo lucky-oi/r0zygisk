@@ -13,6 +13,9 @@ allow * magisk_file sock_file *
 
 allow system_server system_server process execmem
 allow zygote adb_data_file dir search
+allow zygote adb_data_file file { getattr open read }
+allow su adb_data_file dir { getattr open read search }
+allow su adb_data_file file { getattr open read }
 allow zygote mnt_vendor_file dir search
 allow zygote system_file dir mounton
 allow zygote labeledfs filesystem mount

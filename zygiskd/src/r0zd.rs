@@ -34,6 +34,23 @@ static TMP_PATH: LateInit<String> = LateInit::new();
 static PATH_CP_NAME: LateInit<String> = LateInit::new();
 static STATUS_PATH: LateInit<String> = LateInit::new();
 
+pub fn configure_apatch_exclude(pkg: &str, exclude: bool) -> Result<()> {
+    let tmp_path = std::env::var("TMP_PATH")?;
+    let socket_path = format!(
+        "{}/{}",
+        tmp_path,
+        lp_select!("/cp32.sock", "/cp64.sock")
+    );
+    let mut stream = UnixStream::connect(socket_path)?;
+    stream.write_u8(DaemonSocketAction::ConfigureApatchExclude as u8)?;
+    stream.write_u8(if exclude { 1 } else { 0 })?;
+    stream.write_string(pkg)?;
+    match stream.read_u8()? {
+        1 => Ok(()),
+        _ => bail!("{}", stream.read_string()?),
+    }
+}
+
 pub fn main() -> Result<()> {
     info!("Welcome to r0z ({}) !", constants::ZKSU_VERSION);
 
@@ -60,20 +77,39 @@ pub fn main() -> Result<()> {
         }
         _ => format!("Invalid root implementation: {:?}", root_impl::get_impl()),
     };
-    update_status_json(false, &daemon_info)?;
+    if let Err(e) = update_status_json(false, &daemon_info) {
+        warn!("Failed to write initial status: {}", e);
+    }
 
     let context = Context { modules };
     let context = Arc::new(context);
     let listener = create_daemon_socket()?;
     for stream in listener.incoming() {
-        let mut stream = stream?;
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Accept failed: {}", e);
+                continue;
+            }
+        };
         let context = Arc::clone(&context);
-        let action = stream.read_u8()?;
-        let action = DaemonSocketAction::try_from(action)?;
+        let action = match stream.read_u8() {
+            Ok(a) => a,
+            Err(e) => {
+                debug!("Failed to read action: {}", e);
+                continue;
+            }
+        };
+        let action = match DaemonSocketAction::try_from(action) {
+            Ok(a) => a,
+            Err(_) => continue,
+        };
         trace!("New daemon action {:?}", action);
         match action {
             DaemonSocketAction::PingHeartbeat => {
-                update_status_json(true, &daemon_info)?;
+                if let Err(e) = update_status_json(true, &daemon_info) {
+                    warn!("Failed to update status on heartbeat: {}", e);
+                }
             }
             DaemonSocketAction::ZygoteRestart => {
                 info!("Zygote restarted, clean up companions");
@@ -81,10 +117,14 @@ pub fn main() -> Result<()> {
                     let mut companion = module.companion.lock().unwrap();
                     companion.take();
                 }
-                update_status_json(false, &daemon_info)?;
+                if let Err(e) = update_status_json(false, &daemon_info) {
+                    warn!("Failed to update status on zygote restart: {}", e);
+                }
             }
             DaemonSocketAction::SystemServerStarted => {
-                update_status_json(true, &daemon_info)?;
+                if let Err(e) = update_status_json(true, &daemon_info) {
+                    warn!("Failed to update status on system_server start: {}", e);
+                }
             }
             _ => {
                 thread::spawn(move || {
@@ -279,6 +319,7 @@ fn handle_daemon_action(
         },
         DaemonSocketAction::GetProcessFlags => {
             let uid = stream.read_u32()? as i32;
+            let process = stream.read_string().unwrap_or_default();
             let mut flags = ProcessFlags::empty();
             if root_impl::uid_is_manager(uid) {
                 flags |= ProcessFlags::PROCESS_IS_MANAGER;
@@ -286,26 +327,41 @@ fn handle_daemon_action(
                 if root_impl::uid_granted_root(uid) {
                     flags |= ProcessFlags::PROCESS_GRANTED_ROOT;
                 }
-                if root_impl::uid_should_umount(uid) {
+                if root_impl::process_should_umount(uid, &process) {
                     flags |= ProcessFlags::PROCESS_ON_DENYLIST;
+                }
+                if root_impl::process_should_force_hide(uid, &process) {
+                    flags |= ProcessFlags::PROCESS_ON_EXTRA_DENYLIST;
                 }
             }
             match root_impl::get_impl() {
                 root_impl::RootImpl::APatch => flags |= ProcessFlags::PROCESS_ROOT_IS_APATCH,
                 root_impl::RootImpl::KernelSU => flags |= ProcessFlags::PROCESS_ROOT_IS_KSU,
                 root_impl::RootImpl::Magisk => flags |= ProcessFlags::PROCESS_ROOT_IS_MAGISK,
-                _ => panic!("wrong root impl: {:?}", root_impl::get_impl()),
+                _ => warn!("invalid root impl for uid {}: {:?}", uid, root_impl::get_impl()),
             }
             trace!(
-                "Uid {} granted root: {}",
+                "Uid {} process {} granted root: {}",
                 uid,
+                process,
                 flags.contains(ProcessFlags::PROCESS_GRANTED_ROOT)
             );
             trace!(
-                "Uid {} on denylist: {}",
+                "Uid {} process {} on denylist: {}",
                 uid,
+                process,
                 flags.contains(ProcessFlags::PROCESS_ON_DENYLIST)
             );
+            if flags.contains(ProcessFlags::PROCESS_ON_DENYLIST)
+                || flags.contains(ProcessFlags::PROCESS_ON_EXTRA_DENYLIST)
+            {
+                info!(
+                    "denylist flags uid={} process={} flags=0x{:x}",
+                    uid,
+                    process,
+                    flags.bits()
+                );
+            }
             stream.write_u32(flags.bits())?;
         }
         DaemonSocketAction::ReadModules => {
@@ -365,6 +421,17 @@ fn handle_daemon_action(
             let dir = format!("{}/{}", constants::PATH_MODULES_DIR, module.name);
             let dir = fs::File::open(dir)?;
             stream.send_fd(dir.as_raw_fd())?;
+        }
+        DaemonSocketAction::ConfigureApatchExclude => {
+            let exclude = stream.read_u8()? != 0;
+            let pkg = stream.read_string()?;
+            match root_impl::set_package_exclude(&pkg, exclude) {
+                Ok(_) => stream.write_u8(1)?,
+                Err(e) => {
+                    stream.write_u8(0)?;
+                    stream.write_string(&e.to_string())?;
+                }
+            }
         }
         _ => {}
     }

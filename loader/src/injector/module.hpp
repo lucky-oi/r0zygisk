@@ -125,6 +125,7 @@ namespace {
         PROCESS_GRANTED_ROOT = zygisk::StateFlag::PROCESS_GRANTED_ROOT,
         PROCESS_ON_DENYLIST = zygisk::StateFlag::PROCESS_ON_DENYLIST,
 
+        PROCESS_ON_EXTRA_DENYLIST = (1u << 26),
         PROCESS_ROOT_IS_APATCH = (1u << 27),
         PROCESS_IS_MANAGER = (1u << 28),
         PROCESS_ROOT_IS_KSU = (1u << 29),
@@ -234,6 +235,9 @@ case 5:                                \
             long *api_version;
             module_abi_v1 *v1;
         } mod;
+
+    public:
+        void *get_handle() const { return handle; }
     };
 
 } // namespace

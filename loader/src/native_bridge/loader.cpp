@@ -1,8 +1,11 @@
 #include <dlfcn.h>
+#include <android/dlext.h>
 #include <array>
+#include <fcntl.h>
 #include <mutex>
 #include <string_view>
 #include <stdlib.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include "daemon.h"
@@ -22,18 +25,84 @@ constexpr const char *kPayloadLibPath = LP_SELECT("/system/lib/libpayload.so", "
 std::mutex g_lock;
 bool g_loaded = false;
 
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+#endif
+
+int create_memfd(const char *name) {
+#ifdef SYS_memfd_create
+    return static_cast<int>(syscall(SYS_memfd_create, name, MFD_CLOEXEC));
+#else
+    (void) name;
+    return -1;
+#endif
+}
+
+bool copy_to_fd(int in, int out) {
+    char buf[16384];
+    for (;;) {
+        ssize_t r = read(in, buf, sizeof(buf));
+        if (r == 0) return lseek(out, 0, SEEK_SET) == 0;
+        if (r < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        char *p = buf;
+        while (r > 0) {
+            ssize_t w = write(out, p, static_cast<size_t>(r));
+            if (w < 0) {
+                if (errno == EINTR) continue;
+                return false;
+            }
+            p += w;
+            r -= w;
+        }
+    }
+}
+
+void *dlopen_memfd(const char *path, const char *name, int flags) {
+    int in = open(path, O_RDONLY | O_CLOEXEC);
+    if (in < 0) {
+        return nullptr;
+    }
+    int fd = create_memfd(name);
+    if (fd < 0) {
+        close(in);
+        return nullptr;
+    }
+    if (!copy_to_fd(in, fd)) {
+        close(in);
+        close(fd);
+        return nullptr;
+    }
+    close(in);
+
+    android_dlextinfo info{};
+    info.flags = ANDROID_DLEXT_USE_LIBRARY_FD;
+    info.library_fd = fd;
+    void *handle = android_dlopen_ext(name, flags, &info);
+    close(fd);
+    return handle;
+}
+
 bool load_zygisk() {
     std::lock_guard<std::mutex> lock(g_lock);
     if (g_loaded) {
         return true;
     }
 
-    void *payload = dlopen(kPayloadLibPath, RTLD_NOW | RTLD_GLOBAL);
+    void *payload = dlopen_memfd(kPayloadLibPath, "libandroid_runtime_plugin.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!payload) {
+        payload = dlopen(kPayloadLibPath, RTLD_NOW | RTLD_GLOBAL);
+    }
     if (!payload) {
         LOGW("payload is unavailable at %s: %s", kPayloadLibPath, dlerror());
     }
 
-    void *handle = dlopen(kZygiskLibPath, RTLD_NOW | RTLD_GLOBAL);
+    void *handle = dlopen_memfd(kZygiskLibPath, "libandroid_runtime_ext.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!handle) {
+        handle = dlopen(kZygiskLibPath, RTLD_NOW | RTLD_GLOBAL);
+    }
     if (!handle) {
         LOGE("failed to load %s: %s", kZygiskLibPath, dlerror());
         return false;
